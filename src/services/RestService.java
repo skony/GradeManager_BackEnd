@@ -79,8 +79,15 @@ public class RestService {
 
 		return courses;
 	}
-	
+
 	@GET
+	@Path("/grades/{course}")
+	@Produces({"application/xml", "application/json"})
+	public List<Grade> getGrades(@PathParam("course") ObjectId course) {
+		return Course.getCourseGrade(datastore, course);
+	}
+	
+/*	@GET
 	@Path("/grades/{course}/{student}")
 	@Produces({"application/xml", "application/json"})
 	public List<Grade> getGrades(@PathParam("course") String course, @PathParam("student") int student,
@@ -100,7 +107,7 @@ public class RestService {
 		}
 		
 		return grades;
-	}
+	}*/
 
 	/** GET OBJECTS METHODS**/
 
@@ -112,26 +119,27 @@ public class RestService {
 	}
 
 	@GET
-	@Path("/courses/{name}")
+	@Path("/courses/{id}")
 	@Produces({"application/xml", "application/json"})
-	public Course getCourse(@PathParam("name") ObjectId name) {
-		return Course.findCoursebyId(datastore, name);
+	public Course getCourse(@PathParam("id") ObjectId id) {
+		return Course.findCoursebyId(datastore, id);
 	}
 
 	@GET
-	@Path("/grades/{course}/{student}/{num}")
+	@Path("/grades/{course}/{id}")
 	@Produces({"application/xml", "application/json"})
-	public Grade getGrade(@PathParam("course") String course, @PathParam("student") int student,
-						  @PathParam("num") int num) {
-		Course courseObj = Course.findCoursebyName(datastore, course);
+	public Grade getGrade(@PathParam("course") ObjectId course, @PathParam("id") ObjectId id) {
+		Course courseObj = Course.findCoursebyId(datastore, course);
 		List<Grade> grades = new ArrayList<Grade>();
 
 		if(courseObj != null) {
-			grades = courseObj.getStudentGrade(student);
+			grades = courseObj.getGrades();
 		}
 
-		if(grades.size() >= num) {
-			return grades.get(num - 1);
+		for(Grade grade : grades) {
+			if(id.equals(grade.getId())) {
+				return grade;
+			}
 		}
 
 		return null;
@@ -169,9 +177,10 @@ public class RestService {
 	@Consumes({"application/xml", "application/json"})
 	public Response createCourse(Course courseArg) {
 		Course course = new Course(courseArg.getName(), courseArg.getProfessor());
+		datastore.save(course);
 		URI location = null;
 		try {
-			location = new URI("http:/localhost:9998/service/course/" + courseArg.getName());
+			location = new URI("http:/localhost:9998/service/courses/" + course.getId().toString());
 		} catch (URISyntaxException e) {
 			e.printStackTrace();
 		}
@@ -180,19 +189,20 @@ public class RestService {
 	}
 	
 	@POST
-	@Path("/{course}/grades/{student}")
+	@Path("/grades/{course}/{student}")
 	@Consumes({"application/xml", "application/json"})
-	public Response createGrade(Grade gradeArg, @PathParam("course") String course, @PathParam("student") int student) {
+	public Response createGrade(Grade gradeArg, @PathParam("course") ObjectId course, @PathParam("student") int student) {
 		Student studentObj = Student.findStudentbyId(datastore, student);
 		Grade grade = new Grade(gradeArg.getMark(), gradeArg.getDate(), studentObj);
-		Course courseObj = Course.findCoursebyName(datastore, course);
+		Course courseObj = Course.findCoursebyId(datastore, course);
 		
 		if(courseObj != null) {
 			courseObj.addGrade(grade);
 			datastore.save(courseObj);
+			datastore.save(grade);
 			URI location = null;
 			try {
-				location = new URI("http:/localhost:9998/service/" + course + "/grades/" + Integer.toString(student));
+				location = new URI("http:/localhost:9998/service/grades/" + course.toString() + "/" + grade.getId().toString());
 			} catch (URISyntaxException e) {
 				e.printStackTrace();
 			}
@@ -214,9 +224,9 @@ public class RestService {
 	}
 	
 	@DELETE
-	@Path("/courses/{name}")
-	public Response deleteCourse(@PathParam("name") String name) {
-		Course.deleteCourseByName(datastore, name);
+	@Path("/courses/{id}")
+	public Response deleteCourse(@PathParam("id") ObjectId id) {
+		Course.deleteCourseById(datastore, id);
 		
 		return Response.status(204).build();
 	}
@@ -251,12 +261,12 @@ public class RestService {
 	}
 
 	@PUT
-	@Path("/courses/{name}")
+	@Path("/courses/{id}")
 	@Consumes({"application/xml", "application/json"})
-	public Response updateCourse(@PathParam("name") String name, Course courseArg) {
+	public Response updateCourse(@PathParam("id") ObjectId id, Course courseArg) {
 		final Query<Course> courseQuery = datastore.createQuery(Course.class)
-				.field("name")
-				.equal(name);
+				.field("id")
+				.equal(id);
 
 		final UpdateOperations<Course> updateOperations = datastore.createUpdateOperations(Course.class)
 				.set("name", courseArg.getName())

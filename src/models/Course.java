@@ -37,7 +37,6 @@ public class Course {
 		super();
 	}
 
-	//@XmlTransient
 	public ObjectId getId() {
 		return id;
 	}
@@ -85,6 +84,11 @@ public class Course {
 		
 		return studentsGrades;
 	}
+
+	public static List<Grade> getCourseGrade(Datastore datastore, ObjectId course) {
+		Course courseObj = findCoursebyId(datastore, course);
+		return  courseObj.getGrades();
+	}
 	
 	public static Course findCoursebyName(Datastore datastore, String name) {
 		final List<Course> courses = datastore.createQuery(Course.class)
@@ -109,6 +113,14 @@ public class Course {
 				.field("name")
 				.equal(name);
 		
+		datastore.delete(courses);
+	}
+
+	public static void deleteCourseById(Datastore datastore, ObjectId id) {
+		final Query<Course> courses = datastore.createQuery(Course.class)
+				.field("id")
+				.equal(id);
+
 		datastore.delete(courses);
 	}
 

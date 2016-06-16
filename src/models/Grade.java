@@ -2,7 +2,9 @@ package models;
 
 import javax.xml.bind.annotation.XmlRootElement;
 
+import org.bson.types.ObjectId;
 import org.mongodb.morphia.annotations.Embedded;
+import org.mongodb.morphia.annotations.Id;
 import org.mongodb.morphia.annotations.Reference;
 
 import java.util.Date;
@@ -21,6 +23,14 @@ public class Grade {
 		this.mark = mark;
 		this.date = date;
 		this.student = student;
+	}
+
+	public ObjectId getId() {
+		return id;
+	}
+
+	public void setId(ObjectId id) {
+		this.id = id;
 	}
 
 	public Grade() {
