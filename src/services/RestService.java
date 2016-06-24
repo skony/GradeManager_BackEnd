@@ -126,9 +126,9 @@ public class RestService {
 	}
 
 	@GET
-	@Path("/grades/{course}/{id}")
+	@Path("/grades/{course}/{num}")
 	@Produces({"application/xml", "application/json"})
-	public Grade getGrade(@PathParam("course") ObjectId course, @PathParam("id") ObjectId id) {
+	public Grade getGrade(@PathParam("course") ObjectId course, @PathParam("num") int num) {
 		Course courseObj = Course.findCoursebyId(datastore, course);
 		List<Grade> grades = new ArrayList<Grade>();
 
@@ -136,10 +136,8 @@ public class RestService {
 			grades = courseObj.getGrades();
 		}
 
-		for(Grade grade : grades) {
-			if(id.equals(grade.getId())) {
-				return grade;
-			}
+		if(grades.size() >= num) {
+			return grades.get(num - 1);
 		}
 
 		return null;
@@ -198,11 +196,10 @@ public class RestService {
 		
 		if(courseObj != null) {
 			courseObj.addGrade(grade);
-			datastore.save(courseObj);
-			datastore.save(grade);
+			datastore.save(courseObj);;
 			URI location = null;
 			try {
-				location = new URI("http:/localhost:9998/service/grades/" + course.toString() + "/" + grade.getId().toString());
+				location = new URI("http:/localhost:9998/service/grades/" + course.toString() + "/" + courseObj.getGradesNum());
 			} catch (URISyntaxException e) {
 				e.printStackTrace();
 			}

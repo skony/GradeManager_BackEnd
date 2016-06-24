@@ -85,9 +85,13 @@ public class Course {
 		return studentsGrades;
 	}
 
+	public int getGradesNum() {
+		return grades.size();
+	}
+
 	public static List<Grade> getCourseGrade(Datastore datastore, ObjectId course) {
 		Course courseObj = findCoursebyId(datastore, course);
-		return  courseObj.getGrades();
+		return courseObj.getGrades();
 	}
 	
 	public static Course findCoursebyName(Datastore datastore, String name) {
