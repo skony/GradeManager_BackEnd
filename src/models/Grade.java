@@ -14,6 +14,7 @@ import java.util.Date;
 @Embedded
 public class Grade {
 
+    int id;
 	double mark;
 	@JsonFormat(shape=JsonFormat.Shape.STRING,
 			pattern="yyyy-MM-dd", timezone="CET")
@@ -21,14 +22,23 @@ public class Grade {
 	@Reference
 	Student student;
 	
-	public Grade(double mark, Date date, Student student) {
+	public Grade(double mark, Date date, Student student, int id) {
 		super();
+        this.id = id;
 		this.mark = mark;
 		this.date = date;
 		this.student = student;
 	}
 
-	public Grade() {
+    public int getId() {
+        return id;
+    }
+
+    public void setId(int id) {
+        this.id = id;
+    }
+
+    public Grade() {
 		super();
 	}
 

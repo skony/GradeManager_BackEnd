@@ -89,6 +89,15 @@ public class Course {
 		return grades.size();
 	}
 
+	public int getNewGradeId() {
+		if(grades.size() == 0) {
+			return 0;
+		}
+		else {
+			return grades.get( grades.size() - 1).getId() + 1;
+		}
+	}
+
 	public static List<Grade> getCourseGrade(Datastore datastore, ObjectId course) {
 		Course courseObj = findCoursebyId(datastore, course);
 		return courseObj.getGrades();
@@ -128,13 +137,16 @@ public class Course {
 		datastore.delete(courses);
 	}
 
-	public static void deleteGradeByNum(Datastore datastore, String course, int student, int num) {
-		Course courseObj = findCoursebyName(datastore, course);
-		List<Grade> grades = courseObj.getStudentGrade(student);
+	public static void deleteGradeById(Datastore datastore, ObjectId course, int id) {
+		Course courseObj = findCoursebyId(datastore, course);
+		List<Grade> grades = courseObj.getGrades();
 
-		if(grades.size() >= num) {
-			grades.remove(num - 1);
-			datastore.save(courseObj);
+		for(Grade grade : grades) {
+			if(grade.getId() == id) {
+				grades.remove(grade);
+				datastore.save(courseObj);
+				break;
+			}
 		}
 	}
 }

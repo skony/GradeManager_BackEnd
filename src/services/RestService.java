@@ -42,18 +42,25 @@ public class RestService {
 	@GET
 	@Path("/students")
 	@Produces({"application/xml", "application/json"})
-	public List<Student> getStudents(@QueryParam("name") String name,
-									 @QueryParam("surname") String surname,
+	public List<Student> getStudents(@QueryParam("name") String name, @QueryParam("surname") String surname,
 									 @DefaultValue("1900-01-01") @QueryParam("minDate") Date minDate,
-									 @DefaultValue("2017-01-01") @QueryParam("maxDate") Date maxDate) {
+									 @DefaultValue("2017-01-01") @QueryParam("maxDate") Date maxDate,
+                                     @QueryParam("param") String param) {
 		Query<Student> query = datastore.createQuery(Student.class);
 
-		if(name != null) {
+		/*if(name != null) {
 			query = query.field("name").contains(name);
 		}
 		if(surname != null) {
 			query = query.field("surname").contains(surname);
-		}
+		}*/
+
+        if(param != null) {
+            query.or(
+                    query.criteria("name").containsIgnoreCase(param),
+                    query.criteria("surname").containsIgnoreCase(param)
+            );
+        }
 
 		final List<Student> students = query
 				.field("date")
@@ -68,12 +75,19 @@ public class RestService {
 	@GET
 	@Path("/courses")
 	@Produces({"application/xml", "application/json"})
-	public List<Course> getCourses(@QueryParam("professor") String professor) {
+	public List<Course> getCourses(@QueryParam("professor") String professor, @QueryParam("param") String param) {
 		Query<Course> query = datastore.createQuery(Course.class);
 
 		if(professor != null) {
 			query = query.field("professor").contains(professor);
 		}
+
+        if(param != null) {
+            query.or(
+                    query.criteria("name").containsIgnoreCase(param),
+                    query.criteria("professor").containsIgnoreCase(param)
+            );
+        }
 
 		final List<Course> courses = query.asList();
 
@@ -86,28 +100,6 @@ public class RestService {
 	public List<Grade> getGrades(@PathParam("course") ObjectId course) {
 		return Course.getCourseGrade(datastore, course);
 	}
-	
-/*	@GET
-	@Path("/grades/{course}/{student}")
-	@Produces({"application/xml", "application/json"})
-	public List<Grade> getGrades(@PathParam("course") String course, @PathParam("student") int student,
-								 @DefaultValue("2.0") @QueryParam("minMark") double minMark,
-								 @DefaultValue("5.0") @QueryParam("maxMark") double maxMark) {
-		Course courseObj = Course.findCoursebyName(datastore, course);
-		List<Grade> grades = new ArrayList<Grade>();
-		
-		if(courseObj != null) {
-			List<Grade> allGrades = courseObj.getStudentGrade(student);
-
-			for(Grade grade : allGrades) {
-				if(grade.getMark() >= minMark && grade.getMark() <= maxMark) {
-					grades.add(grade);
-				}
-			}
-		}
-		
-		return grades;
-	}*/
 
 	/** GET OBJECTS METHODS**/
 
@@ -126,9 +118,9 @@ public class RestService {
 	}
 
 	@GET
-	@Path("/grades/{course}/{num}")
+	@Path("/grades/{course}/{id}")
 	@Produces({"application/xml", "application/json"})
-	public Grade getGrade(@PathParam("course") ObjectId course, @PathParam("num") int num) {
+	public Grade getGrade(@PathParam("course") ObjectId course, @PathParam("id") int id) {
 		Course courseObj = Course.findCoursebyId(datastore, course);
 		List<Grade> grades = new ArrayList<Grade>();
 
@@ -136,9 +128,11 @@ public class RestService {
 			grades = courseObj.getGrades();
 		}
 
-		if(grades.size() >= num) {
-			return grades.get(num - 1);
-		}
+        for(Grade grade : grades) {
+            if(grade.getId() == id) {
+                return grade;
+            }
+        }
 
 		return null;
 	}
@@ -191,15 +185,16 @@ public class RestService {
 	@Consumes({"application/xml", "application/json"})
 	public Response createGrade(Grade gradeArg, @PathParam("course") ObjectId course, @PathParam("student") int student) {
 		Student studentObj = Student.findStudentbyId(datastore, student);
-		Grade grade = new Grade(gradeArg.getMark(), gradeArg.getDate(), studentObj);
 		Course courseObj = Course.findCoursebyId(datastore, course);
+		int gradeId = courseObj.getNewGradeId();
+		Grade grade = new Grade(gradeArg.getMark(), gradeArg.getDate(), studentObj, gradeId);
 		
 		if(courseObj != null) {
 			courseObj.addGrade(grade);
 			datastore.save(courseObj);;
 			URI location = null;
 			try {
-				location = new URI("http:/localhost:9998/service/grades/" + course.toString() + "/" + courseObj.getGradesNum());
+				location = new URI("http:/localhost:9998/service/grades/" + course.toString() + "/" + gradeId);
 			} catch (URISyntaxException e) {
 				e.printStackTrace();
 			}
@@ -229,10 +224,9 @@ public class RestService {
 	}
 
 	@DELETE
-	@Path("/grades/{course}/{student}/{num}")
-	public Response deleteGrade(@PathParam("course") String course, @PathParam("student") int student,
-								@PathParam("num") int num) {
-		Course.deleteGradeByNum(datastore, course, student, num);
+	@Path("/grades/{course}/{id}")
+	public Response deleteGrade(@PathParam("course") ObjectId course, @PathParam("id") int id) {
+		Course.deleteGradeById(datastore, course, id);
 
 		return Response.status(204).build();
 	}
@@ -275,18 +269,19 @@ public class RestService {
 	}
 
 	@PUT
-	@Path("{course}/grades/{student}/{num}")
+	@Path("grades/{course}/{id}")
 	@Consumes({"application/xml", "application/json"})
-	public Response updateGrade(@PathParam("course") String course, @PathParam("student") int student,
-								@PathParam("num") int num, Grade gradeArg) {
-		Course courseObj = Course.findCoursebyName(datastore, course);
-		List<Grade> grades = courseObj.getStudentGrade(student);
+	public Response updateGrade(@PathParam("course") ObjectId course, @PathParam("id") int id, Grade gradeArg) {
+		Course courseObj = Course.findCoursebyId(datastore, course);
+		List<Grade> grades = courseObj.getGrades();
 
-		if(grades.size() >= num) {
-			Grade grade = grades.get(num -1);
-			grade.setMark(gradeArg.getMark());
-			grade.setDate(gradeArg.getDate());
-			datastore.save(courseObj);
+		for(Grade grade : grades) {
+			if(grade.getId() == id) {
+				grade.setMark(gradeArg.getMark());
+				grade.setDate(gradeArg.getDate());
+				datastore.save(courseObj);
+				break;
+			}
 		}
 
 		return Response.status(200).build();
